@@ -43,5 +43,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>openlibrary.org</key>
+            <dict>
+                <!--Incluir todos los subdominios-->
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <!--Para que se pueda realizar peticiones HTTP-->
+                <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
 </dict>
 </plist>
