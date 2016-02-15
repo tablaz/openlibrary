@@ -8,6 +8,26 @@
 
 import UIKit
 
+import SystemConfiguration
+
+public class Reachability {
+    class func isConnectedToNetwork() -> Bool {
+        var zeroAddress = sockaddr_in()
+        zeroAddress.sin_len = UInt8(sizeofValue(zeroAddress))
+        zeroAddress.sin_family = sa_family_t(AF_INET)
+        let defaultRouteReachability = withUnsafePointer(&zeroAddress) {
+            SCNetworkReachabilityCreateWithAddress(nil, UnsafePointer($0))
+        }
+        var flags = SCNetworkReachabilityFlags()
+        if !SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) {
+            return false
+        }
+        let isReachable = (flags.rawValue & UInt32(kSCNetworkFlagsReachable)) != 0
+        let needsConnection = (flags.rawValue & UInt32(kSCNetworkFlagsConnectionRequired)) != 0
+        return (isReachable && !needsConnection)
+    }
+}
+
 class ViewController: UIViewController , UITextFieldDelegate {
 
     @IBOutlet var isbnCodeText: UITextField!
@@ -46,7 +66,17 @@ class ViewController: UIViewController , UITextFieldDelegate {
     func textFieldShouldReturn(textField: UITextField) -> Bool {
         if textField == isbnCodeText {
             self.view.endEditing(true)
-            getBookData(isbnCodeText.text! as String)
+            if Reachability.isConnectedToNetwork() == true {
+                print("Internet connection OK")
+                            getBookData(isbnCodeText.text! as String)
+            } else {
+                print("Internet connection FAILED")
+                let alerta = UIAlertController(title: "Connection Error", message: "Please check your Internet Connection", preferredStyle: UIAlertControllerStyle.Alert)
+                alerta.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.Cancel, handler: nil))
+                self.presentViewController(alerta, animated: true, completion: nil)
+                self.infoData.text = "";
+            }
+
             return false
         }
         return true
