@@ -18,6 +18,7 @@ public class Reachability {
         let defaultRouteReachability = withUnsafePointer(&zeroAddress) {
             SCNetworkReachabilityCreateWithAddress(nil, UnsafePointer($0))
         }
+        
         var flags = SCNetworkReachabilityFlags()
         if !SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) {
             return false
@@ -32,6 +33,9 @@ class ViewController: UIViewController , UITextFieldDelegate {
 
     @IBOutlet var isbnCodeText: UITextField!
     @IBOutlet var infoData: UITextView!
+    @IBOutlet var autoresLibro: UITextView!
+    @IBOutlet var imagenPortada: UIImageView!
+    @IBOutlet var bookTitle: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -46,21 +50,59 @@ class ViewController: UIViewController , UITextFieldDelegate {
 
     
     func getBookData(isbd: String){
-        let urls = "https://openlibrary.org/api/books?jscmd=data&format=json&bibkeys=\(isbd)"
+        let urls = "https://openlibrary.org/api/books?jscmd=data&format=json&bibkeys=ISBN:\(isbd)"
         print(urls)
         let url = NSURL(string: urls)
         let datos:NSData? = NSData(contentsOfURL: url!)
         let texto = NSString(data:datos!, encoding: NSUTF8StringEncoding)
-        if texto == "{}" || texto == ""{
+        if texto == "{}" || texto == "" {
             let alerta = UIAlertController(title: "Search Result", message: "No Data Found, check the ISBD Code", preferredStyle: UIAlertControllerStyle.Alert)
             alerta.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.Cancel, handler: nil))
             self.presentViewController(alerta, animated: true, completion: nil)
-
+            self.infoData.text = "";
+        } else if texto == nil {
+            let alerta = UIAlertController(title: "Search Result", message: "No Data Found, check Internet connection", preferredStyle: UIAlertControllerStyle.Alert)
+            alerta.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.Cancel, handler: nil))
+            self.presentViewController(alerta, animated: true, completion: nil)
             self.infoData.text = "";
         } else {
+            self.parceEventsJson(datos!)
+            
             self.infoData.text = texto! as String;
+            
         }
 
+    }
+    
+    func parceEventsJson(nsdata: NSData){
+        do {
+            let jsonFull = try NSJSONSerialization.JSONObjectWithData(nsdata, options: NSJSONReadingOptions.MutableContainers) as! [String: AnyObject]
+            let bookArray = jsonFull as NSDictionary
+            for (_, value) in bookArray {
+                // Process Book Title
+                let title  = value["title"] as! NSString
+                self.bookTitle.text = title as String
+                
+                // Process Author List
+                let authors = value["authors"]! != nil ? value["authors"] as! NSArray : [] 
+                var authorsList: String = "Authors:\n"
+                for author in authors {
+                    let authorName = author["name"] as! String
+                    authorsList = authorsList+"\(authorName)\n"
+                }
+                self.autoresLibro.text = authorsList as String
+                
+                // Process Book Cover
+                let imageUrls = value["cover"]!!["large"] as! String
+                let url = NSURL(string: imageUrls)
+                let data = NSData(contentsOfURL: url!)
+                self.imagenPortada.image = UIImage(data: data!)
+            }
+
+        } catch{
+            print("error")
+            print(error)
+        }
     }
     
     func textFieldShouldReturn(textField: UITextField) -> Bool {
@@ -68,7 +110,7 @@ class ViewController: UIViewController , UITextFieldDelegate {
             self.view.endEditing(true)
             if Reachability.isConnectedToNetwork() == true {
                 print("Internet connection OK")
-                            getBookData(isbnCodeText.text! as String)
+                getBookData(isbnCodeText.text! as String)
             } else {
                 print("Internet connection FAILED")
                 let alerta = UIAlertController(title: "Connection Error", message: "Please check your Internet Connection", preferredStyle: UIAlertControllerStyle.Alert)
